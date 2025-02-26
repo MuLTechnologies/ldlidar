@@ -7,6 +7,7 @@
 #include "lipkg.h"
 #include <rclcpp/rclcpp.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "tofbf.h"
 #include <string>
 
@@ -22,6 +23,8 @@ class LD06 : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr loop_timer_;
     LiPkg * lidar_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr lidar_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr is_timeout_pub_;
+    void publishIsTimeout(bool is_timeout);
     void publishLoop();
 };
 

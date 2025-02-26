@@ -10,12 +10,13 @@ LD06::LD06()
 
   lidar_ = new LiPkg;
   lidar_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>(topic_name, 10);
+  is_timeout_pub_ = this->create_publisher<std_msgs::msg::Bool>("~/is_timeout", 10);
 
   lidar_->SetLidarFrame(lidar_frame);
   lidar_->SetRangeThreshold(range_threshold);
   if (port_name.empty())
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Autodetecting serial port");
+    RCLCPP_INFO(this->get_logger(), "Autodetecting serial port");
     std::vector<std::pair<std::string, std::string>> device_list;
     cmd_port_.GetCmdDevices(device_list);
     auto found = std::find_if(
@@ -27,16 +28,16 @@ LD06::LD06()
 
     if (found != device_list.end())
     {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "%s %s", found->first.c_str(), found->second.c_str());
+      RCLCPP_INFO(this->get_logger(), "%s %s", found->first.c_str(), found->second.c_str());
       port_name = found->first;
     }
     else
     {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Can't find LiDAR LD06");
+      RCLCPP_ERROR(this->get_logger(), "Can't find LiDAR LD06");
     }
   }
 
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Using port %s", port_name.c_str());
+  RCLCPP_INFO(this->get_logger(), "Using port %s", port_name.c_str());
 
 	cmd_port_.SetReadCallback([this](const char *byte, size_t len) {
 		if(lidar_->Parse((uint8_t*)byte, len))
@@ -47,11 +48,11 @@ LD06::LD06()
 
   if(cmd_port_.Open(port_name))
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "LiDAR_LD06 started successfully");
+    RCLCPP_INFO(this->get_logger(), "LiDAR_LD06 started successfully");
   } 
   else 
   {
-    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Can't open the serial port");
+    RCLCPP_ERROR(this->get_logger(), "Can't open the serial port");
   }
 
   loop_timer_ = this->create_wall_timer(
@@ -60,8 +61,19 @@ LD06::LD06()
   );
 }
 
+void LD06::publishIsTimeout(bool is_timeout)
+{
+  std_msgs::msg::Bool msg;
+  msg.data = is_timeout;
+  is_timeout_pub_->publish(msg);
+  if(is_timeout) {
+    RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "Timeout deteced on serial data.");
+  }
+}
+
 void LD06::publishLoop()
 {
+  publishIsTimeout(cmd_port_.isTimeout());
   if (lidar_->IsFrameReady())
   {
     lidar_pub_->publish(lidar_->GetLaserScan());

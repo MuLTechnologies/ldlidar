@@ -17,6 +17,7 @@ mRxCount(0),
 mReadCallback(nullptr)
 {
     mComHandle = -1;
+    _is_timeout = false;
 }
 
  
@@ -68,7 +69,7 @@ bool CmdInterfaceLinux::Open(std::string& port_name)
     tcflush(mComHandle, TCIFLUSH);
 
     mRxThreadExitFlag = false;
-    mRxThread = new std::thread(mRxThreadProc, this);
+    mRxThread = new std::thread(&CmdInterfaceLinux::mRxThreadProc, this);
     mIsCmdOpened = true;
 
     return true;
@@ -198,20 +199,29 @@ bool CmdInterfaceLinux::WriteToIo(const uint8_t *tx_buf, uint32_t tx_buf_len, ui
 }
 
 
-void CmdInterfaceLinux::mRxThreadProc(void * param)
+void CmdInterfaceLinux::mRxThreadProc()
 {
-	CmdInterfaceLinux *cmd_if = (CmdInterfaceLinux *)param;
 	char * rx_buf = new char[MAX_ACK_BUF_LEN + 1];
-	while (!cmd_if->mRxThreadExitFlag.load()) {
+	while (!mRxThreadExitFlag.load()) {
 		uint32_t readed = 0;
-		bool res = cmd_if->ReadFromIO((uint8_t *)rx_buf, MAX_ACK_BUF_LEN, &readed);
+		bool res = ReadFromIO((uint8_t *)rx_buf, MAX_ACK_BUF_LEN, &readed);
 		if (res && readed) {
-			cmd_if->mRxCount += readed;
-			if (cmd_if->mReadCallback != nullptr)
+            _last_valid_read = std::chrono::steady_clock::now();
+            _is_timeout = false;
+
+			mRxCount += readed;
+			if (mReadCallback != nullptr)
 			{
-				cmd_if->mReadCallback(rx_buf, readed);
+				mReadCallback(rx_buf, readed);
 			}
-		}
+		} else {
+            // To limit the performance impact, only check for timeout if the last valid read was a while ago
+            if (std::chrono::steady_clock::now() - _last_valid_read > TIMEOUT_DURATION) {
+                if (!_is_timeout) { // Avoid repetitive setting
+                    _is_timeout = true;
+                }
+            }
+        }
 	}
 
 	delete[]rx_buf;

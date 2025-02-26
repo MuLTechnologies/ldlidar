@@ -24,15 +24,18 @@ public:
     bool GetCmdDevices(std::vector<std::pair<std::string, std::string> >& device_list);
 	void SetReadCallback(std::function<void(const char *, size_t length)> callback) { mReadCallback = callback; }
 	bool IsOpened() { return mIsCmdOpened.load(); };
-
+    bool isTimeout() { return _is_timeout; }
 
 private:
     std::thread *mRxThread;
-    static void mRxThreadProc(void *param);
+    void mRxThreadProc();
 	long long mRxCount;
     int32_t mComHandle;
     std::atomic<bool> mIsCmdOpened, mRxThreadExitFlag;
 	std::function<void(const char *, size_t length)> mReadCallback;
+    std::atomic<bool> _is_timeout;
+    std::chrono::steady_clock::time_point _last_valid_read;
+    const std::chrono::seconds TIMEOUT_DURATION = std::chrono::seconds(3); // Duration to observe timeouts before setting _is_timeout.
 };
 
 #endif
