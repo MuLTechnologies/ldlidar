@@ -7,10 +7,12 @@ LD06::LD06()
   std::string port_name = this->declare_parameter("serial_port", ""); //TODO: Figure out what's the real port name
   std::string lidar_frame = this->declare_parameter("lidar_frame", "laser");
   float range_threshold = this->declare_parameter("range_threshold", 0.005);
+  int serial_data_timeout_duration = this->declare_parameter("serial_data_timeout_duration", 3);
 
   lidar_ = new LiPkg;
   lidar_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>(topic_name, 10);
   is_timeout_pub_ = this->create_publisher<std_msgs::msg::Bool>("~/is_timeout", 10);
+  cmd_port_.SetSerialDataTimeoutDuration(serial_data_timeout_duration);
 
   lidar_->SetLidarFrame(lidar_frame);
   lidar_->SetRangeThreshold(range_threshold);
