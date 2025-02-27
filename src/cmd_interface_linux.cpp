@@ -18,7 +18,7 @@ mReadCallback(nullptr)
 {
     mComHandle = -1;
     _is_timeout = false;
-    serial_data_timeout_duration_ = std::chrono::seconds(3);
+    _serial_data_timeout_duration = std::chrono::seconds(3);
 }
 
  
@@ -217,7 +217,7 @@ void CmdInterfaceLinux::mRxThreadProc()
 			}
 		} else {
             // To limit the performance impact, only check for timeout if the last valid read was a while ago
-            if (std::chrono::steady_clock::now() - _last_valid_read > serial_data_timeout_duration_) {
+            if (std::chrono::steady_clock::now() - _last_valid_read > _serial_data_timeout_duration) {
                 if (!_is_timeout) { // Avoid repetitive setting
                     _is_timeout = true;
                 }
